@@ -1,17 +1,24 @@
 "use client";
+
 import { useState, useEffect } from "react";
 
 const AdminPage = () => {
+  // Route States
   const [routes, setRoutes] = useState([]);
+  const [routeData, setRouteData] = useState({ id: null, start: "", end: "", fare: "" });
+  const [editingRoute, setEditingRoute] = useState(false);
+
+  // Bus States
   const [buses, setBuses] = useState([]);
-  const [routeData, setRouteData] = useState({ start: "", end: "", fare: "" });
-  const [busData, setBusData] = useState({ name: "", route: "", capacity: "" });
+  const [busData, setBusData] = useState({ id: null, name: "", route: "", capacity: "" });
+  const [editingBus, setEditingBus] = useState(false);
 
   useEffect(() => {
     fetchRoutes();
     fetchBuses();
   }, []);
 
+  // Fetch Routes
   const fetchRoutes = async () => {
     try {
       const res = await fetch("/api/route");
@@ -22,6 +29,7 @@ const AdminPage = () => {
     }
   };
 
+  // Fetch Buses
   const fetchBuses = async () => {
     try {
       const res = await fetch("/api/bus");
@@ -32,71 +40,83 @@ const AdminPage = () => {
     }
   };
 
-  const addRoute = async () => {
+  // Add or Update Route
+  const addOrUpdateRoute = async () => {
     if (!routeData.start || !routeData.end || routeData.fare === "") {
       alert("All fields (Start, End, Fare) are required!");
       return;
     }
 
+    const url = "/api/route";
+    const method = routeData.id ? "PUT" : "POST";
+
     try {
-      const res = await fetch("/api/route", {
-        method: "POST",
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(routeData),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to add route");
-      }
-
-      const newRoute = await res.json();
-      setRoutes([...routes, newRoute]);
-      setRouteData({ start: "", end: "", fare: "" });
+      fetchRoutes();
+      setRouteData({ id: null, start: "", end: "", fare: "" });
+      setEditingRoute(false);
     } catch (error) {
-      console.error("Error adding route:", error.message);
+      console.error("Error saving route:", error);
     }
   };
 
+  // Delete Route
   const deleteRoute = async (id) => {
     try {
-      await fetch(`/api/route/${id}`, { method: "DELETE" });
+      await fetch("/api/route", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
       setRoutes(routes.filter((route) => route._id !== id));
     } catch (error) {
-      console.error("Error deleting route:", error.message);
+      console.error("Error deleting route:", error);
     }
   };
 
-  const addBus = async () => {
+  // Add or Update Bus
+  const addOrUpdateBus = async () => {
     if (!busData.name || !busData.route || !busData.capacity) {
-      alert("All fields are required!");
+      alert("All fields (Name, Route, Capacity) are required!");
       return;
     }
 
+    const url = "/api/bus";
+    const method = busData.id ? "PUT" : "POST";
+
     try {
-      const res = await fetch("/api/bus", {
-        method: "POST",
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(busData),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to add bus");
-      }
-
-      const newBus = await res.json();
-      setBuses([...buses, newBus]);
-      setBusData({ name: "", route: "", capacity: "" });
+      fetchBuses();
+      setBusData({ id: null, name: "", route: "", capacity: "" });
+      setEditingBus(false);
     } catch (error) {
-      console.error("Error adding bus:", error.message);
+      console.error("Error saving bus:", error);
     }
   };
 
+  // Delete Bus
   const deleteBus = async (id) => {
     try {
-      await fetch(`/api/bus/${id}`, { method: "DELETE" });
+      await fetch("/api/bus", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
       setBuses(buses.filter((bus) => bus._id !== id));
     } catch (error) {
-      console.error("Error deleting bus:", error.message);
+      console.error("Error deleting bus:", error);
     }
   };
 
@@ -106,7 +126,7 @@ const AdminPage = () => {
 
       {/* Route Form */}
       <div className="border p-4 rounded bg-gray-100 mb-6">
-        <h2 className="text-lg font-semibold">Add New Route</h2>
+        <h2 className="text-lg font-semibold">{editingRoute ? "Edit Route" : "Add New Route"}</h2>
         <input
           type="text"
           value={routeData.start}
@@ -128,12 +148,12 @@ const AdminPage = () => {
           placeholder="Fare (₹)"
           className="border p-2 w-full mt-2"
         />
-        <button onClick={addRoute} className="mt-3 bg-green-500 text-white p-2 rounded w-full">
-          Add Route
+        <button onClick={addOrUpdateRoute} className="mt-3 bg-green-500 text-white p-2 rounded w-full">
+          {editingRoute ? "Update Route" : "Add Route"}
         </button>
       </div>
 
-      {/* Routes List */}
+      {/* Route List */}
       <div className="border p-4 rounded bg-gray-200 mb-6">
         <h2 className="text-lg font-semibold">Available Routes</h2>
         {routes.length > 0 ? (
@@ -141,9 +161,14 @@ const AdminPage = () => {
             {routes.map((route) => (
               <li key={route._id} className="p-2 border-b flex justify-between items-center">
                 {route.start} → {route.end} (₹{route.fare})
-                <button onClick={() => deleteRoute(route._id)} className="ml-2 bg-red-500 text-white px-2 py-1 rounded">
-                  Delete
-                </button>
+                <div>
+                  <button onClick={() => setRouteData({ ...route, id: route._id }) & setEditingRoute(true)} className="ml-2 bg-blue-500 text-white px-2 py-1 rounded">
+                    Edit
+                  </button>
+                  <button onClick={() => deleteRoute(route._id)} className="ml-2 bg-red-500 text-white px-2 py-1 rounded">
+                    Delete
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -153,8 +178,8 @@ const AdminPage = () => {
       </div>
 
       {/* Bus Form */}
-      <div className="border p-4 rounded bg-gray-100">
-        <h2 className="text-lg font-semibold">Add New Bus</h2>
+      <div className="border p-4 rounded bg-gray-100 mb-6">
+        <h2 className="text-lg font-semibold">{editingBus ? "Edit Bus" : "Add New Bus"}</h2>
         <input
           type="text"
           value={busData.name}
@@ -177,36 +202,61 @@ const AdminPage = () => {
         <input
           type="number"
           value={busData.capacity}
-          onChange={(e) => setBusData({ ...busData, capacity: Number(e.target.value) })}
+          onChange={(e) => setBusData({ ...busData, capacity: e.target.value })}
           placeholder="Capacity"
           className="border p-2 w-full mt-2"
         />
-        <button onClick={addBus} className="mt-3 bg-blue-500 text-white p-2 rounded w-full">
-          Add Bus
+        <button onClick={addOrUpdateBus} className="mt-3 bg-green-500 text-white p-2 rounded w-full">
+          {editingBus ? "Update Bus" : "Add Bus"}
         </button>
       </div>
 
       {/* Bus List */}
-      <div className="border p-4 rounded bg-gray-200 mt-6">
-        <h2 className="text-lg font-semibold">Available Buses</h2>
-        {buses.length > 0 ? (
-          <ul className="mt-2">
-            {buses.map((bus) => {
-              const route = routes.find((r) => r._id === bus.route);
-              return (
-                <li key={bus._id} className="p-2 border-b flex justify-between items-center">
-                  {bus.name} - {route ? `${route.start} → ${route.end}` : "Unknown Route"} (Capacity: {bus.capacity})
-                  <button onClick={() => deleteBus(bus._id)} className="ml-2 bg-red-500 text-white px-2 py-1 rounded">
-                    Delete
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p>No buses added yet.</p>
-        )}
-      </div>
+<div className="border p-4 rounded bg-gray-200">
+  <h2 className="text-lg font-semibold">Available Buses</h2>
+  {buses.length > 0 ? (
+    <ul className="mt-2">
+      {buses.map((bus) => {
+        // Find the route details based on bus.route ID
+        const busRoute = routes.find(route => route._id === bus.route);
+        return (
+          <li key={bus._id} className="p-2 border-b flex justify-between items-center">
+            <div>
+              <span className="font-semibold">{bus.name}</span> - {bus.capacity} seats
+              <br />
+              <span className="text-sm text-gray-600">
+                Route: {busRoute ? `${busRoute.start} → ${busRoute.end}` : "Not Found"}
+              </span>
+            </div>
+            <div>
+              {/* Edit Button */}
+              <button 
+                onClick={() => {
+                  setBusData({ id: bus._id, name: bus.name, route: bus.route, capacity: bus.capacity });
+                  setEditingBus(true);
+                }} 
+                className="ml-2 bg-blue-500 text-white px-2 py-1 rounded"
+              >
+                Edit
+              </button>
+
+              {/* Delete Button */}
+              <button 
+                onClick={() => deleteBus(bus._id)} 
+                className="ml-2 bg-red-500 text-white px-2 py-1 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  ) : (
+    <p>No buses added yet.</p>
+  )}
+</div>
+
     </div>
   );
 };

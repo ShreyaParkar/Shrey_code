@@ -2,19 +2,20 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connect } from "@/lib/mongodb/mongoose";
 import Bus from "@/lib/models/ticketing/bus.model";
+import Route from "@/lib/models/ticketing/route.model"; // Import Route model
 
-// GET - Fetch all buses
+// ✅ GET - Fetch all buses with populated route data
 export async function GET() {
   try {
     await connect();
-    const buses = await Bus.find().populate("route"); // Ensure it fetches full route details
-    return NextResponse.json(buses);
+    const buses = await Bus.find().populate({ path: "route", select: "start end" }); // Fetch only 'start' and 'end' fields
+    return NextResponse.json(buses, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// POST - Add a new bus
+// ✅ POST - Add a new bus
 export async function POST(req) {
   try {
     await connect();
@@ -24,6 +25,10 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(route)) {
+      return NextResponse.json({ error: "Invalid Route ID" }, { status: 400 });
+    }
+
     const newBus = await Bus.create({ name, route, capacity });
     return NextResponse.json(newBus, { status: 201 });
   } catch (error) {
@@ -31,30 +36,56 @@ export async function POST(req) {
   }
 }
 
-// DELETE - Delete a bus by ID
+// ✅ PUT - Update a bus by ID
+export async function PUT(req) {
+  try {
+    await connect();
+    const { id, name, route, capacity } = await req.json();
+
+    if (!id || !name || !route || !capacity) {
+      return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(route)) {
+      return NextResponse.json({ error: "Invalid ID format" }, { status: 400 });
+    }
+
+    const updatedBus = await Bus.findByIdAndUpdate(id, { name, route, capacity }, { new: true }).populate({
+      path: "route",
+      select: "start end",
+    });
+
+    if (!updatedBus) {
+      return NextResponse.json({ error: "Bus not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(updatedBus, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// ✅ DELETE - Remove a bus by ID (Fixing the 400 error)
 export async function DELETE(req) {
   try {
     await connect();
-    const { searchParams } = new URL(req.url);
-    const busId = searchParams.get("id");
+    const { id } = await req.json(); // Extract id from body
 
-    console.log("Received Bus ID:", busId); // Debugging Log
-
-    if (!busId) {
+    if (!id) {
       return NextResponse.json({ error: "Bus ID is required" }, { status: 400 });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(busId)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ error: "Invalid Bus ID format" }, { status: 400 });
     }
 
-    const deletedBus = await Bus.findByIdAndDelete(busId);
+    const deletedBus = await Bus.findByIdAndDelete(id);
     if (!deletedBus) {
       return NextResponse.json({ error: "Bus not found" }, { status: 404 });
     }
 
     return NextResponse.json({ message: "Bus deleted successfully" }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: "Error deleting bus", details: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
