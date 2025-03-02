@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const StationSchema = new mongoose.Schema({
   routeId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Route",
+    ref: "Route", // Make sure "Route" model exists
     required: true,
   },
   name: {
