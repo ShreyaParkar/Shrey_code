@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation"; // ✅ Import useRouter
 
-
 export default function BusesPage() {
-      const router = useRouter(); // ✅ Initialize router
-    
+  const router = useRouter(); // ✅ Initialize router
+
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [form, setForm] = useState({ id: null, name: "", route: "", capacity: "" });
@@ -74,7 +73,12 @@ export default function BusesPage() {
   }
 
   function handleEdit(bus) {
-    setForm({ id: bus._id, name: bus.name, route: bus.route, capacity: bus.capacity });
+    setForm({
+      id: bus._id,
+      name: bus.name,
+      route: bus.route._id, // ✅ Ensure we set the route ID here
+      capacity: bus.capacity
+    });
     setEditingId(bus._id);
   }
 
@@ -104,7 +108,7 @@ export default function BusesPage() {
 
   return (
     <div className="container mx-auto p-6">
-        {/* ✅ Back Button */}
+      {/* ✅ Back Button */}
       <button onClick={() => router.push("/admin")} className="mb-4 bg-gray-600 text-white px-4 py-2 rounded">
         Back
       </button>
@@ -147,20 +151,23 @@ export default function BusesPage() {
           </tr>
         </thead>
         <tbody>
-          {buses.map((bus) => {
-            const busRoute = routes.find((route) => String(route._id) === String(bus.route));
-            return (
-              <tr key={bus._id} className="border">
-                <td className="border p-2">{bus.name}</td>
-                <td className="border p-2">{busRoute ? `${busRoute.start} → ${busRoute.end}` : "Route Not Found"}</td>
-                <td className="border p-2">{bus.capacity}</td>
-                <td className="border p-2">
-                  <button onClick={() => handleEdit(bus)} className="bg-yellow-500 text-white px-2 py-1 rounded mr-2">Edit</button>
-                  <button onClick={() => handleDelete(bus._id)} className="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
-                </td>
-              </tr>
-            );
-          })}
+          {buses.map((bus) => (
+            <tr key={bus._id} className="border">
+              <td className="border p-2">{bus.name}</td>
+              <td className="border p-2">
+                {bus.route && bus.route.start ? (
+                  `${bus.route.start} → ${bus.route.end}`
+                ) : (
+                  <span className="text-red-500">Route Not Found</span>
+                )}
+              </td>
+              <td className="border p-2">{bus.capacity}</td>
+              <td className="border p-2">
+                <button onClick={() => handleEdit(bus)} className="bg-yellow-500 text-white px-2 py-1 rounded mr-2">Edit</button>
+                <button onClick={() => handleDelete(bus._id)} className="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

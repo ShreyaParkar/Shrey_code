@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function TicketPage() {
   const [routes, setRoutes] = useState([]);
   const [stations, setStations] = useState([]);
-  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [buses, setBuses] = useState([]);
   const [selectedStation, setSelectedStation] = useState(null);
+  const [selectedFare, setSelectedFare] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
 
@@ -16,15 +17,9 @@ export default function TicketPage() {
 
   useEffect(() => {
     fetchRoutes();
-    fetchStations(); // ✅ Fetch all stations on page load
-
-    if (searchParams.get("status") === "success") {
-      setStatus("success");
-    } else if (searchParams.get("status") === "cancel") {
-      setStatus("cancel");
-    }
   }, []);
 
+  // ✅ Fetch Routes
   async function fetchRoutes() {
     try {
       const res = await fetch("/api/route");
@@ -35,26 +30,51 @@ export default function TicketPage() {
     }
   }
 
-  async function fetchStations() {
+  // ✅ Fetch Buses & Stations for a specific route
+  async function fetchBusesAndStations(routeId) {
     try {
-      const res = await fetch("/api/stations");
-      const data = await res.json();
-      setStations(data);
+      if (!routeId) return;
+
+      // Fetch Buses for the Route
+      const busRes = await fetch(`/api/bus?routeId=${routeId}`);
+      const busData = await busRes.json();
+      setBuses(busData);
+
+      // Fetch Stations for Route & Bus
+      const stationRes = await fetch(`/api/stations?routeId=${routeId}`);
+      const stationData = await stationRes.json();
+      setStations(stationData);
     } catch (error) {
-      console.error("Error fetching stations:", error);
+      console.error("Error fetching data:", error);
     }
   }
 
+  // ✅ Handle Selecting a Route (Fetch relevant Buses & Stations)
+  const handleRouteChange = (routeId) => {
+    fetchBusesAndStations(routeId);
+    setSelectedStation(null);
+    setSelectedFare(null);
+  };
+
+  // ✅ Handle Selecting Station
+  const handleStationSelect = (station) => {
+    setSelectedStation(station._id);
+    setSelectedFare(station.fare);
+  };
+
   // ✅ Handle Checkout Payment
-  const handlePayment = async () => {
-    if (!selectedRoute || !selectedStation) return;
+  const handlePayment = async (busId) => {
+    if (!selectedStation) {
+      alert("Please select a station before proceeding.");
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await fetch("/api/checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ route: selectedRoute, station: selectedStation }),
+        body: JSON.stringify({ bus: busId, station: selectedStation }),
       });
 
       const { url, error } = await res.json();
@@ -71,12 +91,12 @@ export default function TicketPage() {
   };
 
   return (
-    <div className="p-6 max-w-lg mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold text-center mb-6 text-gray-900 dark:text-white">
-        🎟️ Book Your Ticket
+        🎟️ Available Routes & Stations
       </h1>
 
-      {/* Payment Status Messages */}
+      {/* ✅ Payment Status Messages */}
       {status === "success" && (
         <div className="p-4 mb-4 text-green-700 bg-green-100 rounded">
           ✅ Payment Successful! Your ticket is booked.
@@ -88,50 +108,99 @@ export default function TicketPage() {
         </div>
       )}
 
-      {/* Route Selection */}
-      <div className="mb-4">
-        <label className="block font-medium mb-1">Select Route:</label>
+      {/* ✅ Route Selection */}
+      <div className="mb-6">
+        <label className="block font-medium mb-2">Select a Route:</label>
         <select
-          onChange={(e) => setSelectedRoute(JSON.parse(e.target.value))}
+          onChange={(e) => handleRouteChange(e.target.value)}
           className="border p-2 w-full rounded bg-white shadow"
         >
           <option value="">-- Choose a Route --</option>
           {routes.map((route) => (
-            <option key={route._id} value={JSON.stringify(route)}>
-              {route.start} → {route.end} | ₹{route.fare}
+            <option key={route._id} value={route._id}>
+              {route.start} → {route.end}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Station Selection (All Stations) */}
-      <div className="mb-4">
-        <label className="block font-medium mb-1">Select Station:</label>
-        {stations.length > 0 ? (
-          <select
-            onChange={(e) => setSelectedStation(e.target.value)}
-            className="border p-2 w-full rounded bg-white shadow"
-          >
-            <option value="">-- Choose a Station --</option>
-            {stations.map((station) => (
-              <option key={station._id} value={station.name}>
-                {station.name} (Route: {station.route})
-              </option>
-            ))}
-          </select>
-        ) : (
-          <p className="text-gray-500">🔄 No stations available.</p>
-        )}
-      </div>
+      {/* ✅ Table of Routes, Buses & Stations */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse border border-gray-300 shadow-md">
+          <thead className="bg-gray-800 text-white">
+            <tr>
+              <th className="border p-3 text-left">Route</th>
+              <th className="border p-3 text-left">Bus</th>
+              <th className="border p-3 text-left">Stations</th>
+              <th className="border p-3 text-left">Fare</th>
+              <th className="border p-3 text-center">Book</th>
+            </tr>
+          </thead>
+          <tbody>
+            {buses.length > 0 ? (
+              buses.map((bus) => {
+                const busStations = stations.filter((station) => String(station.busId?._id) === String(bus._id));
 
-      {/* Payment Button */}
-      <button
-        onClick={handlePayment}
-        className="mt-4 bg-blue-500 text-white p-3 rounded w-full text-lg font-semibold hover:bg-blue-600 transition"
-        disabled={!selectedRoute || !selectedStation || loading}
-      >
-        {loading ? "Processing..." : `Proceed to Payment 💳`}
-      </button>
+                return (
+                  <tr key={bus._id} className="border-b">
+                    {/* ✅ Route Column (only for first bus under each route) */}
+                    <td className="border p-3 font-semibold">
+                      {bus.route?.start} → {bus.route?.end}
+                    </td>
+
+                    {/* ✅ Bus Column */}
+                    <td className="border p-3 font-semibold">{bus.name}</td>
+
+                    {/* ✅ Stations Column */}
+                    <td className="border p-3">
+                      {busStations.length > 0 ? (
+                        <ul className="list-disc pl-4">
+                          {busStations.map((station) => (
+                            <li
+                              key={station._id}
+                              className={`p-2 rounded cursor-pointer flex justify-between ${
+                                selectedStation === station._id ? "bg-green-300" : "hover:bg-gray-200"
+                              }`}
+                              onClick={() => handleStationSelect(station)}
+                            >
+                              <span>{station.name}</span>
+                              <span className="font-semibold">₹{station.fare}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-gray-500">No Stations Available</span>
+                      )}
+                    </td>
+
+                    {/* ✅ Fare Column (Updates dynamically based on selected station) */}
+                    <td className="border p-3 font-semibold">
+                      {selectedStation && busStations.some((st) => st._id === selectedStation)
+                        ? `₹${selectedFare}`
+                        : "Select a station"}
+                    </td>
+
+                    {/* ✅ Book Column */}
+                    <td className="border p-3 text-center">
+                      <button
+                        onClick={() => handlePayment(bus._id)}
+                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
+                        disabled={!selectedStation || loading}
+                      >
+                        {loading ? "Processing..." : "Book"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan="5" className="text-center p-4">No buses or stations available.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

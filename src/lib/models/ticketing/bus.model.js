@@ -4,7 +4,7 @@ const BusSchema = new mongoose.Schema({
   name: { type: String, required: true },
   route: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: "Route", 
+    ref: "Route", // ✅ Reference the Route model
     required: true 
   }, 
   capacity: { type: Number, required: true },
