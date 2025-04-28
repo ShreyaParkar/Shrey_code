@@ -15,7 +15,7 @@ const Hero = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
             <a
-              href="/apply-pass"
+              href="/user/pass"
               className="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all flex items-center justify-center"
             >
               Apply for Pass
