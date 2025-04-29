@@ -1,11 +1,14 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, model, models } from "mongoose";
 
-const PassSchema = new mongoose.Schema({
+const PassSchema = new Schema({
   userId: { type: String, required: true }, // Clerk User ID
-  routeId: { type: mongoose.Schema.Types.ObjectId, ref: "Route", required: true },
+  routeId: { type: Schema.Types.ObjectId, ref: "Route", required: true },
   fare: { type: Number, required: true },
   purchaseDate: { type: Date, default: Date.now },
   expiryDate: { type: Date, required: true }, // Expires in 1 month
 });
 
-export default mongoose.models.Pass || mongoose.model("Pass", PassSchema);
+// 🛡️ Fix for hot-reloading issues (important in Next.js)
+const Pass = models.Pass || model("Pass", PassSchema);
+
+export default Pass;

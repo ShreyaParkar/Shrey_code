@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ✅ Fetch user's current pass (only active ones)
+// ✅ GET: Fetch Active Pass
 export async function GET(req) {
   try {
     await connect();
@@ -16,10 +16,9 @@ export async function GET(req) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    // ✅ Find the latest active pass
     const pass = await Pass.findOne({
       userId,
-      expiryDate: { $gte: new Date() }, // ✅ Only non-expired passes
+      expiryDate: { $gte: new Date() },
     }).populate("routeId", "start end fare");
 
     if (!pass) {
@@ -28,12 +27,12 @@ export async function GET(req) {
 
     return NextResponse.json(pass, { status: 200 });
   } catch (error) {
-    console.error("❌ Error fetching pass:", error);
+    console.error("❌ GET Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// ✅ Confirm payment & generate pass after successful checkout
+// ✅ POST: Confirm Stripe Payment and Create Pass
 export async function POST(req) {
   try {
     await connect();
@@ -43,34 +42,35 @@ export async function POST(req) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 });
     }
 
-    // ✅ Verify the Stripe payment session
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     if (!session || session.payment_status !== "paid") {
       return NextResponse.json({ error: "Payment not confirmed" }, { status: 400 });
     }
 
-    // ✅ Check if the user already has an active pass
     const existingPass = await Pass.findOne({
       userId,
-      expiryDate: { $gte: new Date() }, // ✅ Only check for non-expired passes
+      expiryDate: { $gte: new Date() },
     });
 
     if (existingPass) {
-      return NextResponse.json({ error: "You already have an active pass" }, { status: 400 });
+      return NextResponse.json({ error: "User already has an active pass" }, { status: 400 });
     }
 
-    // ✅ Set pass expiration (1 month validity)
     const purchaseDate = new Date();
     const expiryDate = new Date();
     expiryDate.setMonth(expiryDate.getMonth() + 1);
 
-    // ✅ Create the new pass
-    const newPass = await Pass.create({ userId, routeId, fare, purchaseDate, expiryDate });
+    const newPass = await Pass.create({
+      userId,
+      routeId,
+      fare,
+      purchaseDate,
+      expiryDate,
+    });
 
-    return NextResponse.json({ success: true, pass: newPass }, { status: 201 });
+    return NextResponse.json({ success: true, pass: newPass });
   } catch (error) {
-    console.error("❌ Error creating pass:", error);
+    console.error("❌ POST Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-.

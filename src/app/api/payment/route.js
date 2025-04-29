@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { connect } from "@/lib/mongodb/mongoose";
-import PassModel from "@/lib/models/pass";
+import Pass from "@/lib/models/pass/pass.model";
 import PaymentModel from "@/lib/models/pass/payment.model";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
