@@ -1,38 +1,38 @@
-import { NextResponse } from "next/server";
 import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16", // Use the latest Stripe API version
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(req) {
   try {
-    const { route } = await req.json();
+    const { bus, station } = await req.json();
 
-    if (!route || !route.start || !route.end || !route.fare) {
-      return NextResponse.json({ error: "Invalid route details" }, { status: 400 });
-    }
-
+    // Create a Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
+      mode: "payment",
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/ticket?status=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/ticket?status=cancel`,
       line_items: [
         {
           price_data: {
             currency: "inr",
-            product_data: { name: `${route.start} → ${route.end} Ticket` },
-            unit_amount: Math.round(route.fare * 100), // Convert fare to paise
+            product_data: { name: `${station.name} Ticket` },
+            unit_amount: station.fare * 100, // Convert to paise
           },
           quantity: 1,
         },
       ],
-      mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/ticket?status=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/ticket?status=cancel`,
     });
 
-    return NextResponse.json({ url: session.url });
+    // Use standard Response object for API route
+    return new Response(
+      JSON.stringify({ url: session.url }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   } catch (error) {
-    console.error("Stripe Checkout Error:", error);
-    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
+    console.error("Error creating Stripe checkout session:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }
